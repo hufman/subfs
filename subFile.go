@@ -208,7 +208,7 @@ func (s SubFile) openStream() (io.ReadCloser, error) {
 	if !s.IsVideo && s.Lossless {
 		// Check if the Subsonic user is permitted to "download" raw files
 		stream, err := subsonic.Download(s.ID)
-		if strings.Contains(err.Error(), "not authorized to download files") {
+		if err != nil && strings.Contains(err.Error(), "not authorized to download files") {
 			// Stream a transcoded file instead
 			log.Printf("Opening transcoded audio stream: [%d] %s", s.ID, s.FileName)
 			return subsonic.Stream(s.ID, nil)
