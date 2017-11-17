@@ -16,6 +16,7 @@ import (
 type SubDir struct {
 	ID      int64
 	Root    bool
+	Folder bool
 }
 
 // Attr retrives the attributes for this SubDir
@@ -64,31 +65,65 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 	// If at root of filesystem, fetch indexes
 	if d.Root {
 		// If empty, wait for indexes to be available
-		if len(indexCache) == 0 {
+		if len(artistsIndex) == 0 {
 			<-indexChan
 		}
 
-		// Get index from cache
-		index := indexCache
+		// Create the All Entries
+		nameToDir["All"] = SubDir{
+			ID:   -1,
+			Root: false,
+			Folder: true,
+		}
+		// Create a directory entry
+		dir := fuse.Dirent{
+			Name: "All",
+			Type: fuse.DT_Dir,
+		}
+		directories = append(directories, dir)
 
-		// Iterate indices
-		for _, i := range index {
-			// Iterate all artists
-			for _, a := range i.Artist {
-				// Map artist's name to directory
-				nameToDir[a.Name] = SubDir{
-					ID:   a.ID,
-					Root: false,
+		// Iterate through the music folders
+		for folder, _ := range artistsIndex {
+			nameToDir[folder.Name] = SubDir{
+				ID:   folder.ID,
+				Root: false,
+				Folder: true,
+			}
+			// Create a directory entry
+			dir := fuse.Dirent{
+				Name: folder.Name,
+				Type: fuse.DT_Dir,
+			}
+
+			// Append entry
+			directories = append(directories, dir)
+		}
+		return directories, nil
+	}
+
+	// Top level Music Folder
+	if d.Folder {
+		for folder, artists := range artistsIndex {
+			if (d.ID == folder.ID || d.ID == -1) {
+				log.Printf("Music Folder name: %s", folder.Name)
+				// Iterate all artists
+				for _, a := range artists {
+					// Map artist's name to directory
+					nameToDir[a.Name] = SubDir{
+						ID:   a.ID,
+						Root: false,
+						Folder: false,
+					}
+
+					// Create a directory entry
+					dir := fuse.Dirent{
+						Name: a.Name,
+						Type: fuse.DT_Dir,
+					}
+
+					// Append entry
+					directories = append(directories, dir)
 				}
-
-				// Create a directory entry
-				dir := fuse.Dirent{
-					Name: a.Name,
-					Type: fuse.DT_Dir,
-				}
-
-				// Append entry
-				directories = append(directories, dir)
 			}
 		}
 
