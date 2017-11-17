@@ -28,8 +28,8 @@ var fileCache map[string]os.File
 // cacheTotal is the total size of local files in the cache
 var cacheTotal int64
 
-// indexCache stores the fetched indexes temporarily
-var indexCache []gosubsonic.Index
+// artistsIndex stores the fetched top-level artists
+var artistsIndex map[gosubsonic.MusicFolder][]gosubsonic.IndexArtist
 
 // indexChan blocks subfs from getting indexes until the cache is populated
 var indexChan chan bool
@@ -70,7 +70,7 @@ func main() {
 	cacheTotal = 0
 
 	// Initialize index cache
-	indexCache = make([]gosubsonic.Index, 0)
+	artistsIndex = make(map[gosubsonic.MusicFolder][]gosubsonic.IndexArtist)
 	indexChan = make(chan bool, 0)
 	go cacheIndexes()
 
@@ -150,16 +150,32 @@ func main() {
 func cacheIndexes() {
 	// Immediately cache the current index
 	for {
-		// Fetch indexes
-		index, err := subsonic.GetIndexes(-1, -1)
+		// Fetch the main folders
+		folders, err := subsonic.GetMusicFolders()
 		if err != nil {
-			log.Printf("Failed to retrieve indexes: %s", err.Error())
-			continue
+			log.Printf("Failed to retrieve music folders: %s", err.Error())
+			return
 		}
 
-		// Cache and return indexes
-		log.Printf("Caching %d indexes", len(index))
-		indexCache = index
+		// Fetch indexes
+		for _, folder := range folders {
+			// get all the letters of this folder
+			indexes, err := subsonic.GetIndexes(folder.ID, -1)
+			if err != nil {
+				log.Printf("Failed to retrieve indexes: %s", err.Error())
+				continue
+			}
+
+			// Cache and return indexes
+			artistsIndex[folder] = make([]gosubsonic.IndexArtist, 0)
+			for _, i := range indexes {
+				for _, a := range i.Artist {
+					artistsIndex[folder] = append(artistsIndex[folder], a)
+				}
+			}
+			log.Printf("Caching %d artists", len(artistsIndex[folder]))
+		}
+		log.Printf("Finished caching artists")
 		indexChan <- true
 
 		// Repeat at regular intervals
