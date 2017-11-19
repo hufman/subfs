@@ -57,6 +57,11 @@ func (SubDir) Link(req *fuse.LinkRequest, node fs.Node, intr fs.Intr) (fs.Node, 
 
 // Lookup scans the current directory for matching files or directories
 func (d SubDir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
+	// If directory hasn't loaded, load things first
+	if len(d.Dirs) == 0 && len(d.Files) == 0 {
+		d.ReadDir(intr)
+	}
+
 	// Lookup directory by name
 	if dir, ok := d.Dirs[name]; ok {
 		return dir, nil
