@@ -16,12 +16,6 @@ import (
 // subsonic stores the instance of the gosubsonic client
 var subsonic gosubsonic.Client
 
-// nameToDir maps a directory name to its SubDir
-var nameToDir map[string]SubDir
-
-// nameToFile maps a file name to its SubFile
-var nameToFile map[string]SubFile
-
 // fileCache maps a file name to its file pointer
 var fileCache map[string]os.File
 
@@ -61,9 +55,6 @@ func main() {
 	// Store subsonic client for global use
 	subsonic = *sub
 
-	// Initialize lookup maps
-	nameToDir = map[string]SubDir{}
-	nameToFile = map[string]SubFile{}
 
 	// Initialize file cache
 	fileCache = map[string]os.File{}
@@ -188,5 +179,5 @@ type SubFS struct{}
 
 // Root is called to get the root directory node of this filesystem
 func (fs SubFS) Root() (fs.Node, fuse.Error) {
-	return &SubDir{Root: true}, nil
+	return NewSubDir(-1, true, false), nil
 }
