@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 	"text/template"
@@ -40,13 +41,6 @@ var streamMap map[int64]chan []byte
 var cacheSize = flag.Int64("cache", 100, "Size of the local file cache, in megabytes")
 
 // helper method for filename templates
-// Gets the last element from a Path
-func basename(path string) string {
-	var pieces = strings.Split(path, "/")
-	return pieces[len(pieces)-1]
-}
-
-// helper method for filename templates
 // Strips the extension from a Path or Filename
 func stripExtension(filename string) string {
 	var pieces = strings.Split(filename, ".")
@@ -63,7 +57,11 @@ func main() {
 	mount := flag.String("mount", "", "Path where subfs will be mounted")
 
 	// Flag for filename template
-	// Another option is {{basename .Path }}
+	// Another useful option is:
+	// {{if eq .A.TranscodedSuffix ""}}{{.Filename}}{{else}}{{ if eq .Suffix "mp3" }}{{.Basename }}.{{.Suffix}}{{else}}{{end}}{{end}}
+	// Which hides the original files from transcodes
+	// Alternatively, this one includes the original extension
+	// {{if eq .A.TranscodedSuffix ""}}{{.Filename}}{{else}}{{ if eq .Suffix "mp3" }}{{.Filename }}.{{.Suffix}}{{else}}{{end}}{{end}}
 	filenameTmpl := flag.String("filenames", "{{printf \"%02d - %s - %s.%s\" .A.Track .A.Artist .A.Title .A.Suffix}}", "Template for filenames")
 
 	// Parse command line flags
@@ -88,7 +86,9 @@ func main() {
 	templateFunctions["Trim"] = strings.Trim
 	templateFunctions["TrimLeft"] = strings.TrimLeft
 	templateFunctions["TrimRight"] = strings.TrimRight
-	templateFunctions["basename"] = basename
+	templateFunctions["Base"] = path.Base
+	templateFunctions["Dir"] = path.Dir
+	templateFunctions["Ext"] = path.Ext
 	templateFunctions["stripExt"] = stripExtension
 	filenameTemplate, err = template.New("filenameTemplate").Funcs(templateFunctions).Parse(*filenameTmpl)
 	if err != nil {

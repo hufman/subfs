@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"syscall"
 
@@ -231,6 +232,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 				Title string
 				Suffix string
 				Path string
+				Filename string
 				Basename string
 			}{
 				A: a,
@@ -238,9 +240,10 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 				Album: a.Album,
 				Track: a.Track,
 				Title: a.Title,
-				Suffix: a.Suffix,
+				Suffix: t.suffix,
 				Path: a.Path,
-				Basename: strings.TrimSuffix(a.Path, t.suffix),
+				Filename: path.Base(a.Path),
+				Basename: strings.TrimSuffix(path.Base(a.Path), "." + a.Suffix),
 			}
 
 			var filenameBuffer bytes.Buffer
@@ -250,6 +253,10 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 				continue
 			}
 			var filename = filenameBuffer.String()
+			if len(filename) == 0 {
+				// the template returned an empty string
+				continue
+			}
 
 			// Check for any characters which may cause trouble with filesystem display
 			for _, b := range badChars {
