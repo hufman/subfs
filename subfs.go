@@ -5,7 +5,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"bazil.org/fuse"
@@ -18,6 +20,9 @@ var subsonic gosubsonic.Client
 
 // fileCache maps a file name to its file pointer
 var fileCache map[string]os.File
+
+// filenameTemplate describes how to format a filename
+var filenameTemplate *template.Template
 
 // cacheTotal is the total size of local files in the cache
 var cacheTotal int64
@@ -34,6 +39,20 @@ var streamMap map[int64]chan []byte
 // cacheSize is the maximum size of the local file cache in megabytes
 var cacheSize = flag.Int64("cache", 100, "Size of the local file cache, in megabytes")
 
+// helper method for filename templates
+// Gets the last element from a Path
+func basename(path string) string {
+	var pieces = strings.Split(path, "/")
+	return pieces[len(pieces)-1]
+}
+
+// helper method for filename templates
+// Strips the extension from a Path or Filename
+func stripExtension(filename string) string {
+	var pieces = strings.Split(filename, ".")
+	return strings.Join(pieces[:len(pieces)-1], ".")
+}
+
 func main() {
 	// Flags to connect to Subsonic server
 	host := flag.String("host", "", "Host of Subsonic server")
@@ -42,6 +61,10 @@ func main() {
 
 	// Flag for subfs mount point
 	mount := flag.String("mount", "", "Path where subfs will be mounted")
+
+	// Flag for filename template
+	// Another option is {{basename .Path }}
+	filenameTmpl := flag.String("filenames", "{{printf \"%02d - %s - %s.%s\" .A.Track .A.Artist .A.Title .A.Suffix}}", "Template for filenames")
 
 	// Parse command line flags
 	flag.Parse()
@@ -55,6 +78,22 @@ func main() {
 	// Store subsonic client for global use
 	subsonic = *sub
 
+	// Save other parameters
+	templateFunctions := make(template.FuncMap)
+	templateFunctions["Split"] = strings.Split
+	templateFunctions["Title"] = strings.Title
+	templateFunctions["ToLower"] = strings.ToLower
+	templateFunctions["ToTitle"] = strings.ToTitle
+	templateFunctions["ToUpper"] = strings.ToUpper
+	templateFunctions["Trim"] = strings.Trim
+	templateFunctions["TrimLeft"] = strings.TrimLeft
+	templateFunctions["TrimRight"] = strings.TrimRight
+	templateFunctions["basename"] = basename
+	templateFunctions["stripExt"] = stripExtension
+	filenameTemplate, err = template.New("filenameTemplate").Funcs(templateFunctions).Parse(*filenameTmpl)
+	if err != nil {
+		log.Fatalf("Could not parse filenameTemplate: %s", *filenameTmpl)
+	}
 
 	// Initialize file cache
 	fileCache = map[string]os.File{}

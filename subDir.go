@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/mdlayher/goset"
+	"github.com/mdlayher/gosubsonic"
 )
 
 // SubDir represents a directory in the filesystem
@@ -221,16 +223,42 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 			}
 
 			// Predefined audio filename format
-			audioFormat := fmt.Sprintf("%02d - %s - %s.%s", a.Track, a.Artist, a.Title, t.suffix)
+			var filenameCtx = struct{
+				A gosubsonic.Audio
+				Artist string
+				Album string
+				Track int64
+				Title string
+				Suffix string
+				Path string
+				Basename string
+			}{
+				A: a,
+				Artist: a.Artist,
+				Album: a.Album,
+				Track: a.Track,
+				Title: a.Title,
+				Suffix: a.Suffix,
+				Path: a.Path,
+				Basename: strings.TrimSuffix(a.Path, t.suffix),
+			}
+
+			var filenameBuffer bytes.Buffer
+			err := filenameTemplate.Execute(&filenameBuffer, filenameCtx)
+			if err != nil {
+				log.Printf("subfs: failed to format filename %d: %s", a.Path, err.Error())
+				continue
+			}
+			var filename = filenameBuffer.String()
 
 			// Check for any characters which may cause trouble with filesystem display
 			for _, b := range badChars {
-				audioFormat = strings.Replace(audioFormat, b, "_", -1)
+				filename = strings.Replace(filename, b, "_", -1)
 			}
 
 			// Create a directory entry
 			dir := fuse.Dirent{
-				Name: audioFormat,
+				Name: filename,
 				Type: fuse.DT_File,
 			}
 
@@ -238,7 +266,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 			d.Files[dir.Name] = SubFile{
 				ID:       a.ID,
 				Created:  a.Created,
-				FileName: audioFormat,
+				FileName: filename,
 				IsVideo:  false,
 				Lossless: lossless,
 				Size:     t.size,
