@@ -19,8 +19,8 @@ type SubDir struct {
 	ID      int64
 	Root    bool
 	Folder  bool
-	Dirs    map[string]SubDir
-	Files   map[string]SubFile
+	dirs    map[string]SubDir
+	files   map[string]SubFile
 }
 
 func NewSubDir(ID int64, Root bool, Folder bool) SubDir{
@@ -30,8 +30,8 @@ func NewSubDir(ID int64, Root bool, Folder bool) SubDir{
 		Folder: Folder,
 	}
 	// contents of directory
-	newDir.Dirs = map[string]SubDir{}
-	newDir.Files = map[string]SubFile{}
+	newDir.dirs = map[string]SubDir{}
+	newDir.files = map[string]SubFile{}
 	return newDir
 }
 
@@ -60,17 +60,17 @@ func (SubDir) Link(req *fuse.LinkRequest, node fs.Node, intr fs.Intr) (fs.Node, 
 // Lookup scans the current directory for matching files or directories
 func (d SubDir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
 	// If directory hasn't loaded, load things first
-	if len(d.Dirs) == 0 && len(d.Files) == 0 {
+	if len(d.dirs) == 0 && len(d.files) == 0 {
 		d.ReadDir(intr)
 	}
 
 	// Lookup directory by name
-	if dir, ok := d.Dirs[name]; ok {
+	if dir, ok := d.dirs[name]; ok {
 		return dir, nil
 	}
 
 	// Lookup file by name
-	if f, ok := d.Files[name]; ok {
+	if f, ok := d.files[name]; ok {
 		return f, nil
 	}
 
@@ -91,7 +91,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 		}
 
 		// Create the All Entries
-		d.Dirs["All"] = NewSubDir(
+		d.dirs["All"] = NewSubDir(
 			-1,
 			false,
 			true,
@@ -105,7 +105,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 
 		// Iterate through the music folders
 		for folder, _ := range artistsIndex {
-			d.Dirs[folder.Name] = NewSubDir(
+			d.dirs[folder.Name] = NewSubDir(
 				folder.ID,
 				false,
 				true,
@@ -130,7 +130,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 				// Iterate all artists
 				for _, a := range artists {
 					// Map artist's name to directory
-					d.Dirs[a.Name] = NewSubDir(
+					d.dirs[a.Name] = NewSubDir(
 						a.ID,
 						false,
 						false,
@@ -178,7 +178,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 		}
 
 		// Add SubDir directory to lookup map
-		d.Dirs[dir.Title] = NewSubDir(
+		d.dirs[dir.Title] = NewSubDir(
 			dir.ID,
 			false,
 			false,
@@ -263,7 +263,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 			}
 
 			// Add SubFile file to lookup map
-			d.Files[dir.Name] = SubFile{
+			d.files[dir.Name] = SubFile{
 				ID:       a.ID,
 				Created:  a.Created,
 				FileName: filename,
@@ -297,7 +297,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 		}
 
 		// Add SubFile file to lookup map
-		d.Files[dir.Name] = SubFile{
+		d.files[dir.Name] = SubFile{
 			ID:       v.ID,
 			Created:  v.Created,
 			FileName: videoFormat,
@@ -325,7 +325,7 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 		}
 
 		// Add SubFile file to lookup map
-		d.Files[dir.Name] = SubFile{
+		d.files[dir.Name] = SubFile{
 			ID:       c,
 			FileName: coverArtFormat,
 			IsArt:    true,
