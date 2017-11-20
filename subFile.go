@@ -188,6 +188,14 @@ func (s SubFile) ReadAll(intr fs.Intr) ([]byte, fuse.Error) {
 		return stream, nil
 	// Interrupt channel
 	case <-intr:
+		go func() {
+			// Try to download the thing and then quit
+			select {
+			case _ = <-byteChan:
+			case <-time.After(time.Second * 300):
+			}
+		}()
+		log.Printf("Interrupted during download")
 		return nil, fuse.EINTR
 	}
 }
