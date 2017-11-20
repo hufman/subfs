@@ -40,6 +40,11 @@ var streamMap map[int64]chan []byte
 // cacheSize is the maximum size of the local file cache in megabytes
 var cacheSize = flag.Int64("cache", 100, "Size of the local file cache, in megabytes")
 
+// fileCacheSize stores any corrected transcoded filesizes
+// we find out the corrected size during a Fuse callback,
+// and we don't have a shared reference to a SubFile then
+var fileSizeCache map[int64]int64
+
 // helper method for filename templates
 // Strips the extension from a Path or Filename
 func stripExtension(filename string) string {
@@ -103,6 +108,9 @@ func main() {
 	artistsIndex = make(map[gosubsonic.MusicFolder][]gosubsonic.IndexArtist)
 	indexChan = make(chan bool, 0)
 	go cacheIndexes()
+
+	// Initialize the updated filesize cache
+	fileSizeCache = make(map[int64]int64)
 
 	// Initialize stream map
 	streamMap = map[int64]chan []byte{}

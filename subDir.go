@@ -221,6 +221,11 @@ func (d SubDir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
 				// using MP3 CBR 320 as our benchmark, being that it will likely over-estimate
 				// Thanks: http://www.jeffreysward.com/editorials/mp3size.htm
 				t.size = ((a.DurationRaw * 320) / 8) * 1024
+
+				// If the Duration is unknown, guess!
+				if t.size == 0 {
+					t.size = a.Size * 4
+				}
 			}
 
 			// Predefined audio filename format

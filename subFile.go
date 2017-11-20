@@ -25,12 +25,26 @@ type SubFile struct {
 	Size     int64
 }
 
+func (s SubFile) SetSize(size int64) {
+	if s.GetSize() != size {
+		fileSizeCache[s.ID] = size
+	}
+}
+
+func (s SubFile) GetSize() int64 {
+	size, ok := fileSizeCache[s.ID]
+	if !ok {
+		size = s.Size
+	}
+	return size
+}
+
 // Attr returns file attributes (all files read-only)
 func (s SubFile) Attr() fuse.Attr {
 	return fuse.Attr{
 		Mode:  0644,
 		Mtime: s.Created,
-		Size:  uint64(s.Size),
+		Size:  uint64(s.GetSize()),
 	}
 }
 
@@ -103,7 +117,7 @@ func (s SubFile) ReadAll(intr fs.Intr) ([]byte, fuse.Error) {
 		}
 
 		// Calculate actual size upon retrieval
-		s.Size = int64(len(file))
+		s.SetSize(int64(len(file)))
 
 		// Close stream
 		if err := stream.Close(); err != nil {
